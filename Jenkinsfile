@@ -5,11 +5,11 @@ pipeline {
         stage('Initialize') {
             steps {
                 withCredentials([
-                    string(credentialsId: 'aws-account-id', variable: 'AWS_ACCOUNT_ID'),
-                    string(credentialsId: 'aws-role-arn', variable: 'ROLE_ARN')
+                    string(credentialsId: 'aws-account-id', variable: 'TEMP_ACCOUNT_ID'),
+                    string(credentialsId: 'aws-role-arn', variable: 'TEMP_ROLE_ARN')
                 ]) { 
                 script {
-                    env.AWS_ACCOUNT_ID = AWS_ACCOUNT_ID
+                    env.AWS_ACCOUNT_ID = TEMP_ACCOUNT_ID
                     env.ROLE_ARN = TEMP_ROLE_ARN
                     if (env.BRANCH_NAME == 'develop') {
                         env.TARGET_ENV = 'dev'
