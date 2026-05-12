@@ -27,15 +27,20 @@ pipeline {
         }
 
         stage('Build & Push') {
-            // This stage must run for both branches so that we have an image to deploy
-            when { 
-                expression { env.BRANCH_NAME == 'develop' || env.BRANCH_NAME == 'production' } 
-            }
+            when { expression { env.BRANCH_NAME == 'develop' || env.BRANCH_NAME == 'production' } }
             steps {
                 withCredentials([string(credentialsId: 'jenkins-oidc-token', variable: 'OIDC_TOKEN')]) {
                     script {
+                        
                         def assumeRole = sh(
-                            script: "aws sts assume-role-with-web-identity --role-arn ${env.ROLE_ARN} --role-session-name jenkins-session --web-identity-token \"${OIDC_TOKEN}\" --query \"Credentials.[AccessKeyId,SecretAccessKey,SessionToken]\" --output text",
+                            script: """
+                                aws sts assume-role-with-web-identity \
+                                --role-arn ${env.ROLE_ARN} \
+                                --role-session-name jenkins-session \
+                                --web-identity-token "${OIDC_TOKEN}" \
+                                --query "Credentials.[AccessKeyId,SecretAccessKey,SessionToken]" \
+                                --output text
+                            """,
                             returnStdout: true
                         ).trim().split('\t')
 
@@ -51,10 +56,11 @@ pipeline {
                             sh """
                                 aws ecr get-login-password --region ${env.AWS_REGION} | docker login --username AWS --password-stdin ${registry}
                                 docker build -t ${registry}/${repoName}:${imageTag} .
-                                docker push ${registry}/${repoName}:${imageTag}
                                 docker tag ${registry}/${repoName}:${imageTag} ${registry}/${repoName}:latest
+                                docker push ${registry}/${repoName}:${imageTag}
                                 docker push ${registry}/${repoName}:latest
                             """
+                            env.LATEST_TAG = imageTag
                         }
                     }
                 }
@@ -68,7 +74,7 @@ pipeline {
                     
                     allOf {
                         branch 'production'
-                        expression { 
+                        expression {
                             def commitMsg = sh(script: 'git log -1 --pretty=%B', returnStdout: true).toLowerCase()
                             return commitMsg.contains("merge pull request") && commitMsg.contains("from develop")
                         }
@@ -94,5 +100,6 @@ pipeline {
                 }
             }
         }
+
     }
 }
