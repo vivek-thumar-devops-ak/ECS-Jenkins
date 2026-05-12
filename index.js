@@ -7,7 +7,7 @@ app.use(cors()); // Critical for separate frontend/backend communication
 
 // Default page for the Backend URL
 app.get('/', (req, res) => {
-    res.send("<h1>Backend Production API Node is Running</h1><p>Use /health for data.</p>");
+    res.send("<h1>Backend Development Branch API is Running</h1><p>Use /health for data.</p>");
 });
 
 app.get('/health', (req, res) => {
