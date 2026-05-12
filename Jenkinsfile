@@ -72,7 +72,7 @@ pipeline {
                 anyOf {
                     branch 'develop'
                     
-                    all {
+                    allOf {
                         branch 'production'
                         expression {
                             def commitMsg = sh(script: 'git log -1 --pretty=%B', returnStdout: true).toLowerCase()
