@@ -11,7 +11,7 @@ app.get('/', (req, res) => {
 });
 
 app.get('/health', (req, res) => {
-    res.json({ status: 'UP', uptime: process.uptime(), source: 'Jenkins-ECS-Backend' });
+    res.json({ status: 'UP', uptime: process.uptime(), source: 'Jenkins-ECS-Backend-Production' });
 });
 
 app.listen(3000, '0.0.0.0', () => {
