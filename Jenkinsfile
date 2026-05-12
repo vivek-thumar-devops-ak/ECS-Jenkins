@@ -23,24 +23,23 @@ pipeline {
                 expression { env.BRANCH_NAME == 'develop' || env.BRANCH_NAME == 'production' } 
             }
             steps {
-                withAWS(role: env.ROLE_ARN, credentials: 'jenkins-oidc-token', region: env.AWS_REGION) {
-                    script {
-                        
-                        def repoName = env.ECR_REPO
+                withCredentials([string(credentialsId: 'jenkins-oidc-token', variable: 'AWS_WEB_IDENTITY_TOKEN')]) {
+                    withAWS(role: env.ROLE_ARN, region: env.AWS_REGION, roleSessionName: 'jenkins-session') {
+                        script {
+                            def registry = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com"
+                            def imageTag = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
+                            def repoName = env.ECR_REPO
 
-                        def registry = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com"
-                        def imageTag = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
+                            // Docker login using the assumed role permissions
+                            sh "aws ecr get-login-password --region ${env.AWS_REGION} | docker login --username AWS --password-stdin ${registry}"
 
-                        sh "aws ecr get-login-password | docker login --username AWS --password-stdin ${registry}"
-
-                        echo "Targeting Repository: ${repoName}"
-
-                        sh "docker build -t ${registry}/${repoName}:${imageTag} ."
-                        sh "docker tag ${registry}/${repoName}:${imageTag} ${registry}/${repoName}:latest"
-                        sh "docker push ${registry}/${repoName}:${imageTag}"
-                        sh "docker push ${registry}/${repoName}:latest"
-                        
-                        env.LATEST_TAG = imageTag
+                            sh "docker build -t ${registry}/${repoName}:${imageTag} ."
+                            sh "docker tag ${registry}/${repoName}:${imageTag} ${registry}/${repoName}:latest"
+                            sh "docker push ${registry}/${repoName}:${imageTag}"
+                            sh "docker push ${registry}/${repoName}:latest"
+                            
+                            env.LATEST_TAG = imageTag
+                        }
                     }
                 }
             }
@@ -60,7 +59,7 @@ pipeline {
         //         }
         //     }
         //     steps {
-        //         withAWS(role: env.ROLE_ARN, credentials: 'jenkins-oidc-token', region: env.AWS_REGION) {
+        //         withAWS(role: env.ROLE_ARN, region: env.AWS_REGION) {
         //             sh """
         //             aws ecs update-service \
         //             --cluster ${env.ECS_CLUSTER} \
