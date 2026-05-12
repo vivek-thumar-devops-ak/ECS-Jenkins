@@ -136,8 +136,16 @@ pipeline {
                                 echo "Updating container image..."
                                 jq --arg IMAGE "${env.IMAGE_URI}" '
                                     .containerDefinitions[0].image = \$IMAGE
-                                    | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities)
-                                ' task-def.json > new-task-def.json
+                                    | del(
+                                        .taskDefinitionArn,
+                                        .revision,
+                                        .status,
+                                        .requiresAttributes,
+                                        .compatibilities,
+                                        .registeredAt,
+                                        .registeredBy
+                                        )
+                                    ' task-def.json > new-task-def.json
 
                                 echo "Registering new task definition..."
                                 NEW_TASK_DEF=\$(aws ecs register-task-definition \
