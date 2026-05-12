@@ -69,21 +69,23 @@ pipeline {
 
         stage('Deploy to ECS') {
             when {
-                anyOf {
-                    branch 'develop'
-                    
-                    allOf {
-                        branch 'production'
-                        expression {
-                            def commitMsg = sh(script: 'git log -1 --pretty=%B', returnStdout: true).toLowerCase()
-                            return commitMsg.contains("merge") || 
-                                commitMsg.contains("develop") || 
-                                env.BRANCH_NAME == 'production'
-                        }
+                    anyOf {
+                        branch 'develop'
 
+                        allOf {
+                            branch 'production'
+                            expression {
+                                def parents = sh(
+                                    script: "git log -1 --pretty=%P",
+                                    returnStdout: true
+                                ).trim().split(" ")
+
+                                return parents.size() > 1
+                            }
+                        }
                     }
-                }
             }
+            
             steps {
                 withCredentials([string(credentialsId: 'jenkins-oidc-token', variable: 'OIDC_TOKEN')]) {
                     script {
