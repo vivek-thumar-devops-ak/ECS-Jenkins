@@ -29,7 +29,12 @@ pipeline {
                 expression { env.BRANCH_NAME == 'develop' || env.BRANCH_NAME == 'production' } 
             }
             steps {
-                withCredentials([string(credentialsId: 'jenkins-oidc-token', variable: 'AWS_WEB_IDENTITY_TOKEN')]) {
+                withCredentials([string(credentialsId: 'jenkins-oidc-token', variable: 'TOKEN_VALUE')]) {
+
+                    sh "echo ${TOKEN_VALUE} > oidc_token.jwt"
+
+                    env.AWS_WEB_IDENTITY_TOKEN_FILE = "${WORKSPACE}/oidc_token.jwt"
+                    
                     withAWS(role: env.ROLE_ARN, region: env.AWS_REGION, roleSessionName: 'jenkins-session') {
                         script {
                             def registry = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com"
