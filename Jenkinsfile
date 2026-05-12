@@ -68,11 +68,22 @@ pipeline {
         }
 
         stage('Deploy to ECS') {
-            when { expression { env.BRANCH_NAME == 'develop' || env.BRANCH_NAME == 'production' } }
+            when {
+                anyOf {
+                    branch 'develop'
+                    
+                    all {
+                        branch 'production'
+                        expression {
+                            def commitMsg = sh(script: 'git log -1 --pretty=%B', returnStdout: true).toLowerCase()
+                            return commitMsg.contains("merge pull request") && commitMsg.contains("from develop")
+                        }
+                    }
+                }
+            }
             steps {
                 withCredentials([string(credentialsId: 'jenkins-oidc-token', variable: 'OIDC_TOKEN')]) {
                     script {
-                        
                         def assumeRole = sh(
                             script: "aws sts assume-role-with-web-identity --role-arn ${env.ROLE_ARN} --role-session-name jenkins-deploy --web-identity-token ${OIDC_TOKEN} --query 'Credentials.[AccessKeyId,SecretAccessKey,SessionToken]' --output text",
                             returnStdout: true
@@ -89,5 +100,6 @@ pipeline {
                 }
             }
         }
+
     }
 }
