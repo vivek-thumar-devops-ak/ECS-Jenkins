@@ -82,6 +82,8 @@ pipeline {
                 anyOf {
                     branch 'develop'
 
+                    branch 'production'
+
                     allOf {
                         branch 'production'
                         expression {
