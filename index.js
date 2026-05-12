@@ -7,11 +7,11 @@ app.use(cors()); // Critical for separate frontend/backend communication
 
 // Default page for the Backend URL
 app.get('/', (req, res) => {
-    res.send("<h1>Backend Development API is Running</h1><p>Use /health for data.</p>");
+    res.send("<h1>Backend production Branch API is Running</h1><p>Use /health for data.</p>");
 });
 
 app.get('/health', (req, res) => {
-    res.json({ status: 'UP', uptime: process.uptime(), source: 'Jenkins-ECS-Backend' });
+    res.json({ status: 'UP', uptime: process.uptime(), source: 'Jenkins-ECS-Backend-Production' });
 });
 
 app.listen(3000, '0.0.0.0', () => {
