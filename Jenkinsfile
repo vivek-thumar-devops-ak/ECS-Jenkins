@@ -51,12 +51,12 @@ pipeline {
                         ]) {
                             def registry = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com"
                             def imageTag = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
-                            def repoName = env.ECR_REPO
+                            def repoName = env.ECR_REPO.trim()
 
                             sh """
                                 aws ecr get-login-password --region ${env.AWS_REGION} | docker login --username AWS --password-stdin ${registry}
                                 docker build -t ${registry}/${repoName}:${imageTag} .
-                                docker tag ${registry}/${repoName}:${imageTag} ${registry}/${repoName}:latest
+                                docker tag ${registry}/${repoName}:${imageTag} ${registry}/${repoName}:latest   
                                 docker push ${registry}/${repoName}:${imageTag}
                                 docker push ${registry}/${repoName}:latest
                             """
@@ -69,18 +69,23 @@ pipeline {
 
         stage('Deploy to ECS') {
             when {
-                anyOf {
-                    branch 'develop'
-                    
-                    allOf {
-                        branch 'production'
-                        expression {
-                            def commitMsg = sh(script: 'git log -1 --pretty=%B', returnStdout: true).toLowerCase()
-                            return commitMsg.contains("merge pull request") && commitMsg.contains("from develop")
+                    anyOf {
+                        branch 'develop'
+
+                        allOf {
+                            branch 'production'
+                            expression {
+                                def parents = sh(
+                                    script: "git log -1 --pretty=%P",
+                                    returnStdout: true
+                                ).trim().split(" ")
+
+                                return parents.size() > 1
+                            }
                         }
                     }
-                }
             }
+            
             steps {
                 withCredentials([string(credentialsId: 'jenkins-oidc-token', variable: 'OIDC_TOKEN')]) {
                     script {
