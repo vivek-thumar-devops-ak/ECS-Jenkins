@@ -4,11 +4,11 @@ pipeline {
     stages {
         stage('Initialize') {
             steps {
-                script {
-                    withCredentials([
-                        string(credentialsId: 'aws-account-id', variable: 'TEMP_ACCOUNT_ID'),
-                        string(credentialsId: 'aws-role-arn', variable: 'TEMP_ROLE_ARN')
-                    ]) { 
+                withCredentials([
+                    string(credentialsId: 'aws-account-id', variable: 'TEMP_ACCOUNT_ID'),
+                    string(credentialsId: 'aws-role-arn', variable: 'TEMP_ROLE_ARN')
+                ]) { 
+                    script {
                         env.AWS_ACCOUNT_ID = TEMP_ACCOUNT_ID
                         env.ROLE_ARN       = TEMP_ROLE_ARN
                         
@@ -27,30 +27,27 @@ pipeline {
         }
 
         stage('Build & Push') {
-            when { 
-                expression { env.BRANCH_NAME == 'develop' || env.BRANCH_NAME == 'production' } 
-            }
+            when { expression { env.BRANCH_NAME == 'develop' || env.BRANCH_NAME == 'production' } }
             steps {
                 withCredentials([string(credentialsId: 'jenkins-oidc-token', variable: 'OIDC_TOKEN')]) {
                     script {
-                        def assumeRoleJson = sh(
+                        
+                        def assumeRole = sh(
                             script: """
                                 aws sts assume-role-with-web-identity \
                                 --role-arn ${env.ROLE_ARN} \
                                 --role-session-name jenkins-session \
                                 --web-identity-token "${OIDC_TOKEN}" \
                                 --query "Credentials.[AccessKeyId,SecretAccessKey,SessionToken]" \
-                                --output json
+                                --output text
                             """,
                             returnStdout: true
-                        ).trim()
+                        ).trim().split('\t')
 
-                        def creds = readJSON text: assumeRoleJson
-                        
                         withEnv([
-                            "AWS_ACCESS_KEY_ID=${creds[0]}",
-                            "AWS_SECRET_ACCESS_KEY=${creds[1]}",
-                            "AWS_SESSION_TOKEN=${creds[2]}"
+                            "AWS_ACCESS_KEY_ID=${assumeRole[0]}",
+                            "AWS_SECRET_ACCESS_KEY=${assumeRole[1]}",
+                            "AWS_SESSION_TOKEN=${assumeRole[2]}"
                         ]) {
                             def registry = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com"
                             def imageTag = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
@@ -70,26 +67,27 @@ pipeline {
             }
         }
 
-        // stage('Deploy to ECS') {
-        //     when { 
-        //         expression { env.BRANCH_NAME == 'develop' || env.BRANCH_NAME == 'production' } 
-        //     }
-        //     steps {
-        //         withCredentials([string(credentialsId: 'jenkins-oidc-token', variable: 'OIDC_TOKEN')]) {
-        //             script {
-        //                 def assumeRoleJson = sh(script: "aws sts assume-role-with-web-identity --role-arn ${env.ROLE_ARN} --role-session-name jenkins-deploy --web-identity-token ${OIDC_TOKEN} --query 'Credentials.[AccessKeyId,SecretAccessKey,SessionToken]' --output json", returnStdout: true).trim()
-        //                 def creds = readJSON text: assumeRoleJson
+        stage('Deploy to ECS') {
+            when { expression { env.BRANCH_NAME == 'develop' || env.BRANCH_NAME == 'production' } }
+            steps {
+                withCredentials([string(credentialsId: 'jenkins-oidc-token', variable: 'OIDC_TOKEN')]) {
+                    script {
                         
-        //                 withEnv([
-        //                     "AWS_ACCESS_KEY_ID=${creds[0]}",
-        //                     "AWS_SECRET_ACCESS_KEY=${creds[1]}",
-        //                     "AWS_SESSION_TOKEN=${creds[2]}"
-        //                 ]) {
-        //                     sh "aws ecs update-service --cluster ${env.ECS_CLUSTER} --service ${env.ECS_SERVICE} --force-new-deployment --region ${env.AWS_REGION}"
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
+                        def assumeRole = sh(
+                            script: "aws sts assume-role-with-web-identity --role-arn ${env.ROLE_ARN} --role-session-name jenkins-deploy --web-identity-token ${OIDC_TOKEN} --query 'Credentials.[AccessKeyId,SecretAccessKey,SessionToken]' --output text",
+                            returnStdout: true
+                        ).trim().split('\t')
+
+                        withEnv([
+                            "AWS_ACCESS_KEY_ID=${assumeRole[0]}",
+                            "AWS_SECRET_ACCESS_KEY=${assumeRole[1]}",
+                            "AWS_SESSION_TOKEN=${assumeRole[2]}"
+                        ]) {
+                            sh "aws ecs update-service --cluster ${env.ECS_CLUSTER} --service ${env.ECS_SERVICE} --force-new-deployment --region ${env.AWS_REGION}"
+                        }
+                    }
+                }
+            }
+        }
     }
 }
