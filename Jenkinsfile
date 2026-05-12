@@ -4,7 +4,13 @@ pipeline {
     stages {
         stage('Initialize') {
             steps {
+                withCredentials([
+                    string(credentialsId: 'aws-account-id', variable: 'AWS_ACCOUNT_ID'),
+                    string(credentialsId: 'aws-role-arn', variable: 'ROLE_ARN')
+                ]) { 
                 script {
+                    env.AWS_ACCOUNT_ID = AWS_ACCOUNT_ID
+                    env.ROLE_ARN = TEMP_ROLE_ARN
                     if (env.BRANCH_NAME == 'develop') {
                         env.TARGET_ENV = 'dev'
                         env.ECR_REPO = env.ECR_DEV_REPO
@@ -14,7 +20,7 @@ pipeline {
                         env.ECR_REPO = env.ECR_PROD_REPO
                         env.ECS_SERVICE = env.ECS_PROD_SERVICE
                     }
-                }
+                }}
             }
         }
 
