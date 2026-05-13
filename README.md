@@ -6,10 +6,10 @@ This repository contains a small Node.js backend service intended to be built an
 
 ## Repository layout
 
-- `index.js` — main Express application (server).\
-- `Dockerfile` — container build steps for production images.\
-- `package.json` — Node.js manifest and dependency list.\
-- `Jenkinsfile` — (present in repo) CI/CD pipeline (not modified here).
+- `index.js` — main Express application (server).
+- `Dockerfile` — container build steps for production images.
+- `package.json` — Node.js manifest and dependency list.
+- `Jenkinsfile` — CI/CD pipeline
 
 ---
 
@@ -17,8 +17,8 @@ This repository contains a small Node.js backend service intended to be built an
 
 This project is a tiny HTTP API meant to run on port `3000`. It exposes:
 
-- `GET /` — lightweight landing text for quick validation.\
-- `GET /health` — JSON health/status response (used by load balancers, container orchestrators, and monitoring checks).
+- `GET /` — lightweight landing text for quick validation.
+- `GET /health` — JSON health/status response (used for monitoring checks).
 
 The app uses Express and `cors` middleware to allow cross-origin requests from separate frontends. The `Dockerfile` packages the app for production using the official Node.js 24 slim image and runs the server as a non-root `node` user.
 
@@ -41,18 +41,18 @@ Key parts and what they do:
 
 - Route `GET /health`:
   - Responds with JSON: `{ status: 'UP', uptime: process.uptime(), source: 'Jenkins-ECS-Backend-Production' }`.
-  - `status: 'UP'` is a simple indicator used by orchestration health checks.\
-  - `uptime` gives the node process uptime in seconds.\
+  - `status: 'UP'` is a simple indicator used by orchestration health checks.
+  - `uptime` gives the node process uptime in seconds.
   - `source` is an identifying string included for logging/monitoring clarity.
 
 - `app.listen(3000, '0.0.0.0', ...)` — starts the HTTP server bound to all interfaces (`0.0.0.0`) so it accepts external connections inside a container or VM. The callback logs that the server is running.
 
 Flow at runtime:
 
-1. Process starts (via `node index.js` or Docker `CMD`).\
-2. Express is initialized and CORS middleware enabled.\
-3. Routes are registered for `/` and `/health`.\
-4. Server listens on `0.0.0.0:3000`.\
+1. Process starts (via `node index.js` or Docker `CMD`).
+2. Express is initialized and CORS middleware enabled.
+3. Routes are registered for `/` and `/health`.
+4. Server listens on `0.0.0.0:3000`.
 5. Client requests hit the registered routes and receive the corresponding responses.
 
 ### `Dockerfile`
@@ -75,7 +75,7 @@ Notes:
 
 ### `package.json`
 
-- `dependencies`: includes `express` (v5.x) and `cors`.\
+- `dependencies`: includes `express` (v5.x) and `cors`.
 - `scripts.test` is a placeholder and exits with an error by default — no unit tests configured.
 - `type: "commonjs"` ensures `require()`/`module.exports` semantics.
 
@@ -97,12 +97,6 @@ This repository also contains a `Jenkinsfile` that implements a CI/CD pipeline u
   - Image tagging uses branch and build number for traceability.\
   - The pipeline updates `containerDefinitions[0].image` in the task definition; if the task has multiple containers, adjust the `jq` expression to target the correct container by `name`.
   - The service's health checks should point to `/health` (the app exposes this endpoint).
-
-- Suggested improvements:
-  - Validate required environment variables (`ECR_REPO`, `ECS_SERVICE`, `AWS_REGION`) at the start of the job and fail fast if missing.\
-  - Patch the task definition by container `name` instead of index to support multi-container tasks.\
-  - Add post-deploy verification and optional rollback if the new task fails health checks.\
-  - Consider adding image cleanup (prune old tags) in ECR to control storage growth.
 
 ## How to run locally (development)
 
@@ -143,11 +137,6 @@ docker run --rm -p 3000:3000 jenkins-task-backend:latest
 
 Visit the same endpoints on `http://localhost:3000`.
 
-Notes for CI/CD and deployment (Jenkins/ECS):
-
-- Build the Docker image in your pipeline, tag the image, and push to your registry.\
-- Deploy to your container platform (ECS, Kubernetes, etc.) and configure a load balancer/target group to perform health checks against `/health` on port `3000`.
-
 ---
 
 ## Environment variables and configuration
@@ -176,20 +165,3 @@ app.listen(PORT, '0.0.0.0', () => console.log(`Backend running on port ${PORT}`)
 - If you cannot bind to port 3000 in a container, confirm the host port is free and `docker run -p` mapping is correct.
 
 ---
-
-## Next steps (optional suggestions)
-
-- Add a `start` script to `package.json` and a simple health monitor.\
-- Make port configurable via `process.env.PORT`.\
-- Add unit tests and a CI step to run them (update the `test` script).\
-- Harden CORS policy and add logging/metrics.
-
----
-
-If you want, I can also:
-
-- Update `index.js` to use `process.env.PORT` and add a `start` script to `package.json`.\
-- Add a basic `README` badge or a `Dockerfile` optimization.\
-- Create a short `Makefile` or `docker-compose.yml` for local convenience.
-
-Feel free to tell me which enhancements you'd like next.
